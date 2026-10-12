@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Misi Suara Galaksi 3D AR | Pendidikan Moral Tingkatan 3</title>
+  <meta name="theme-color" content="#121d4d" />
+  <!-- A-Frame + AR.js (Hiro marker) + glTF model assets from public CDNs -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.7/aframe/build/aframe-ar.js"></script>
+  <style>
+    :root {
+      --navy:#121d4d; --navy2:#202c69; --cream:#fff9ee; --ink:#14204f;
+      --gold:#ffcb52; --muted:#52618b; --mint:#8ce3c6; --line:#d7e2f8;
+    }
+    * { box-sizing:border-box; }
+    html, body { margin:0; min-height:100%; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--ink); }
+    body {
+      min-height:100vh; background:radial-gradient(circle at 85% 10%, #51458c 0, transparent 34%),
+      radial-gradient(circle at 8% 90%, #202c69 0, transparent 32%), var(--navy);
+      overflow-x:hidden;
+    }
+    body::before {
+      content:""; position:fixed; inset:0; pointer-events:none; opacity:.7;
+      background-image:radial-gradient(#fff 1px,transparent 1.5px);
+      background-size:137px 97px; background-position:12px 18px;
+    }
+    button, input { font:inherit; }
+    button { cursor:pointer; }
+    .shell { width:min(1060px, calc(100% - 28px)); margin:0 auto; padding:30px 0 22px; position:relative; z-index:1; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:16px; color:white; margin-bottom:24px; }
+    .eyebrow { color:var(--mint); font-size:.72rem; font-weight:800; letter-spacing:.19em; text-transform:uppercase; margin:0 0 8px; }
+    h1 { font-family:Georgia,"Times New Roman",serif; font-size:clamp(1.8rem,4vw,2.5rem); line-height:1.05; margin:0; letter-spacing:-.03em; }
+    .sound { border:1px solid #ffffff55; border-radius:30px; background:#ffffff20; color:white; padding:11px 16px; white-space:nowrap; }
+    .panel { background:var(--cream); border-radius:30px; padding:clamp(22px,4vw,36px); box-shadow:0 18px 0 #080f35aa; }
+    .intro { display:flex; align-items:center; gap:18px; margin-bottom:25px; }
+    .planet { font-size:3rem; line-height:1; filter:drop-shadow(0 4px 0 #e9a13b); }
+    h2 { font-family:Georgia,"Times New Roman",serif; font-size:clamp(1.35rem,3vw,1.8rem); margin:0 0 7px; }
+    p { line-height:1.5; }
+    .intro p { color:#40527f; margin:0; }
+    label { display:block; font-weight:750; margin-bottom:9px; }
+    .name-input { width:100%; border:2px solid var(--line); border-radius:15px; padding:15px 16px; background:#fff; outline:none; color:var(--ink); }
+    .name-input:focus { border-color:#86a9ff; box-shadow:0 0 0 4px #86a9ff25; }
+    .section-label { font-size:1.08rem; margin:23px 0 12px; font-weight:800; }
+    .heroes { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+    .hero { text-align:left; min-height:142px; padding:17px; border:2px solid transparent; border-radius:18px; color:var(--ink); transition:transform .15s,border-color .15s; }
+    .hero:hover { transform:translateY(-2px); }
+    .hero.selected { border-color:#ffb51e; box-shadow:0 0 0 4px #ffca5a70; }
+    .hero:nth-child(1){background:#e4f5ff;} .hero:nth-child(2){background:#f2e9ff;}
+    .hero:nth-child(3){background:#fff0db;} .hero:nth-child(4){background:#e2f8ed;}
+    .hero .emoji { display:block; font-size:1.8rem; margin-bottom:8px; }
+    .hero strong { display:block; margin-bottom:5px; font-size:.95rem; }
+    .hero small { display:block; color:#42537d; line-height:1.35; font-size:.79rem; }
+    .actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:26px; }
+    .primary { border:0; border-radius:28px; padding:14px 24px; font-weight:850; color:#111d4b; background:var(--gold); box-shadow:0 5px 0 #dc9029; }
+    .primary:hover { filter:brightness(1.03); transform:translateY(-1px); }
+    .secondary { border:1px solid #b9c7e7; border-radius:25px; padding:12px 17px; background:white; color:var(--ink); font-weight:750; }
+    .note { font-size:.82rem; color:#5a6890; margin:0; }
+    .footer { color:#bac7ec; text-align:center; font-size:.78rem; margin:20px 0 0; }
+    .hidden { display:none !important; }
+    /* AR view */
+    #arView { position:fixed; inset:0; z-index:10; background:#080d1c; }
+    #arView a-scene { position:absolute; inset:0; width:100%; height:100%; }
+    .ar-hud { position:absolute; inset:0; z-index:12; pointer-events:none; display:flex; flex-direction:column; justify-content:space-between; padding:calc(14px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom)); }
+    .hud-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+    .hud-chip { background:#101b49eF; color:#fff; border:1px solid #ffffff33; padding:10px 13px; border-radius:14px; box-shadow:0 5px 20px #0003; font-size:.86rem; }
+    .hud-chip strong { display:block; font-size:.95rem; }
+    .hud-button { pointer-events:auto; border:1px solid #ffffff55; border-radius:25px; padding:10px 14px; color:white; background:#ffffff20; }
+    .scan-hint { align-self:center; text-align:center; max-width:340px; margin-top:auto; margin-bottom:16px; background:#101b49eF; color:white; border:1px solid #ffffff30; padding:13px 17px; border-radius:16px; }
+    .scan-hint b { color:#ffda72; }
+    .crosshair { position:absolute; width:180px; height:180px; top:50%; left:50%; transform:translate(-50%,-50%); border:2px dashed #ffffff65; border-radius:22px; opacity:.6; }
+    .quiz-modal { pointer-events:auto; width:min(540px,100%); align-self:center; margin:auto 0 0; background:var(--cream); border-radius:24px; padding:22px; box-shadow:0 15px 45px #0007; max-height:70vh; overflow:auto; }
+    .quiz-kicker { font-size:.72rem; font-weight:850; letter-spacing:.12em; text-transform:uppercase; color:#6978a4; margin:0 0 8px; }
+    .quiz-modal h2 { font-family:inherit; font-size:1.22rem; line-height:1.35; margin-bottom:15px; }
+    .answers { display:grid; gap:9px; }
+    .answer { border:2px solid #dbe3f4; border-radius:13px; padding:12px 13px; text-align:left; background:white; color:var(--ink); }
+    .answer:hover { border-color:#9cb5fa; }
+    .answer:disabled { cursor:default; opacity:1; }
+    .answer.correct { border-color:#36b785; background:#e4f9ef; }
+    .answer.wrong { border-color:#ed8b81; background:#fff0ed; }
+    .feedback { padding:12px; border-radius:12px; background:#eef3ff; margin:12px 0 0; line-height:1.45; }
+    .modal-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+    .score-pill { display:inline-block; border-radius:30px; background:#e8edff; padding:6px 10px; font-size:.8rem; font-weight:800; margin-bottom:10px; }
+    .toast { position:absolute; top:78px; left:50%; transform:translateX(-50%); background:#fff7dc; color:#43300a; padding:11px 16px; border-radius:12px; max-width:calc(100% - 28px); text-align:center; box-shadow:0 8px 24px #0003; font-size:.88rem; }
+    .end-card { text-align:center; }
+    .end-card .big-score { font-size:3rem; font-weight:900; color:#e19a14; }
+    @media (max-width:760px) {
+      .shell { padding-top:22px; } .top { align-items:flex-start; } .sound { font-size:.78rem; padding:9px 12px; }
+      .panel { border-radius:23px; } .heroes { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .hero { min-height:128px; padding:14px; } .intro { align-items:flex-start; }
+    }
+    @media (max-width:400px) { .heroes { grid-template-columns:1fr 1fr; gap:8px; } .hero small { font-size:.73rem; } .planet { font-size:2.4rem; } }
+  </style>
+</head>
+<body>
+  <main class="shell" id="startScreen">
+    <header class="top">
+      <div>
+        <p class="eyebrow">Pendidikan Moral · Tingkatan 3 · Unit 12</p>
+        <h1>Misi Suara Galaksi 3D AR</h1>
+      </div>
+      <button class="sound" id="soundButton" type="button" aria-pressed="false">♫ Bunyi: Mati</button>
+    </header>
+
+    <section class="panel">
+      <div class="intro">
+        <div class="planet" aria-hidden="true">🪐</div>
+        <div>
+          <h2>Sedia untuk berlepas?</h2>
+          <p>Imbas penanda Hiro untuk memunculkan hero 3D. Ketik model untuk menjawab 10 cabaran tentang kebebasan bersuara yang bertanggungjawab!</p>
+        </div>
+      </div>
+      <label for="playerName">Nama penjelajah</label>
+      <input class="name-input" id="playerName" maxlength="40" placeholder="Taip nama anda di sini..." autocomplete="name" />
+      <div class="section-label">Pilih hero &amp; kemahiran khas</div>
+      <div class="heroes" id="heroChoices">
+        <button class="hero selected" data-hero="captain" type="button" aria-pressed="true">
+          <span class="emoji">🦸‍♀️</span><strong>Kapten Adil</strong><small>Menilai keadilan: 45 saat untuk setiap soalan.</small>
+        </button>
+        <button class="hero" data-hero="robot" type="button" aria-pressed="false">
+          <span class="emoji">🤖</span><strong>Robot Fakta</strong><small>Membezakan fakta dan fitnah: petunjuk percuma sekali.</small>
+        </button>
+        <button class="hero" data-hero="harmony" type="button" aria-pressed="false">
+          <span class="emoji">🦸</span><strong>Penjaga Harmoni</strong><small>Menjaga keharmonian: +5 emas bagi jawapan betul.</small>
+        </button>
+        <button class="hero" data-hero="commander" type="button" aria-pressed="false">
+          <span class="emoji">🧑‍🚀</span><strong>Komander Bertanggungjawab</strong><small>Etika bersuara: lindungi satu nyawa sekali setiap misi.</small>
+        </button>
+      </div>
+      <div class="actions">
+        <button class="primary" id="startButton" type="button">🚀 Mulakan pengembaraan AR</button>
+        <p class="note">Perlu akses kamera. Gunakan HTTPS atau localhost dan benarkan kebenaran kamera.</p>
+      </div>
+    </section>
+    <p class="footer">Unit 12 · Kebebasan Bersuara Menjamin Kemakmuran Negara · Belajar sambil menjelajah ✦</p>
+  </main>
+
+  <section id="arView" class="hidden" aria-label="Paparan realiti terimbuh">
+    <div class="crosshair" aria-hidden="true"></div>
+    <div class="ar-hud">
+      <div class="hud-top">
+        <div class="hud-chip"><strong id="hudPlayer">Penjelajah</strong><span id="hudProgress">Cabaran 0/10 · Skor 0</span></div>
+        <button class="hud-button" id="exitButton" type="button">✕ Keluar</button>
+      </div>
+      <div id="toast" class="toast hidden" role="status"></div>
+      <div class="scan-hint" id="scanHint">🎯 Halakan kamera ke <b>marker Hiro</b> yang dicetak. <br/>Apabila hero muncul, <b>ketik model 3D</b> untuk menjawab.</div>
+      <section id="quizModal" class="quiz-modal hidden" aria-live="polite">
+        <p class="quiz-kicker" id="quizKicker">Cabaran galaksi</p>
+        <div class="score-pill" id="scorePill">Skor 0 · Emas 0</div>
+        <h2 id="questionText">Soalan akan muncul di sini.</h2>
+        <div class="answers" id="answerList"></div>
+        <p class="feedback hidden" id="feedbackText"></p>
+        <div class="modal-actions">
+          <button class="primary hidden" id="nextButton" type="button">Cabaran seterusnya →</button>
+          <button class="secondary" id="closeQuizButton" type="button">Kembali ke kamera</button>
+        </div>
+      </section>
+    </div>
+    <a-scene
+      embedded
+      vr-mode-ui="enabled: false"
+      renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true"
+      arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best; detectionMode: mono;"
+      loading-screen="enabled: false">
+      <a-assets timeout="15000">
+        <a-asset-item id="robotModel" src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/models/gltf/RobotExpressive/RobotExpressive.glb"></a-asset-item>
+        <a-asset-item id="astronautModel" src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"></a-asset-item>
+      </a-assets>
+      <a-marker id="hiroMarker" preset="hiro" emitevents="true">
+        <a-entity id="heroModel" position="0 0.08 0" scale="0.42 0.42 0.42"
+          gltf-model="#astronautModel"
+          class="tap-target"
+          data-clickable="true"
+          gesture-handler
+          cursor-listener>
+        </a-entity>
+        <a-entity position="0 1.35 0" rotation="-90 0 0">
+          <a-text id="modelLabel" value="KAPTEN ADIL" align="center" color="#fff8dc" width="3.5"
+            shader="msdf" outlineColor="#101b49" outlineWidth="0.12"></a-text>
+        </a-entity>
+        <a-ring position="0 0.03 0" rotation="-90 0 0" radius-inner="0.48" radius-outer="0.53"
+          color="#ffcb52" material="opacity:0.9; transparent:true"></a-ring>
+      </a-marker>
+      <a-entity camera>
+        <a-cursor raycaster="objects: .tap-target" fuse="false" material="color: #ffcb52; shader: flat" geometry="primitive: ring; radiusInner: 0.008; radiusOuter: 0.014"></a-cursor>
+      </a-entity>
+    </a-scene>
+  </section>
+
+  <script>
+    // This game is intentionally self-contained in one HTML file. Internet is required for CDN libraries/models.
+    const questions = [
+      {q:"Apakah maksud kebebasan bersuara yang bertanggungjawab?", a:["Bebas berkata apa sahaja tanpa batas","Menyampaikan pandangan dengan berhemah dan menghormati hak orang lain","Menyebarkan semua berita yang diterima","Memaksa orang lain menerima pendapat kita"], c:1, why:"Kebebasan bersuara perlu diamalkan secara berhemah serta menghormati maruah dan hak orang lain."},
+      {q:"Sebelum berkongsi berita yang mengejutkan di media sosial, apakah tindakan terbaik?", a:["Terus kongsikan supaya menjadi orang pertama","Tambah cerita supaya lebih menarik","Semak kesahihan melalui sumber yang dipercayai","Hantar kepada semua kumpulan dahulu"], c:2, why:"Menyemak fakta membantu mengelakkan penyebaran fitnah dan maklumat palsu."},
+      {q:"Rakan sekelas mempunyai pandangan yang berbeza. Apakah respons paling beretika?", a:["Dengar pandangannya dan jawab dengan sopan","Ejek pandangannya di hadapan kelas","Sekat dia daripada bercakap","Sebarkan tangkap layar untuk memalukannya"], c:0, why:"Menghormati perbezaan pendapat dan berdialog secara sopan membantu mengekalkan keharmonian."},
+      {q:"Antara berikut, yang manakah penyalahgunaan kebebasan bersuara?", a:["Memberi cadangan untuk memperbaiki sekolah","Bertanya soalan dengan bahasa sopan","Menyatakan ketidaksetujuan dengan alasan","Menulis tuduhan tanpa bukti untuk menjatuhkan seseorang"], c:3, why:"Tuduhan tanpa bukti boleh menjadi fitnah dan menjejaskan maruah seseorang."},
+      {q:"Mengapakah kita perlu mengelakkan kata-kata yang menghina kaum atau agama?", a:["Supaya hanya satu pandangan dibenarkan","Untuk menjaga perpaduan dan menghormati sensitiviti masyarakat","Supaya perbincangan tidak mempunyai fakta","Untuk menghalang semua kritikan"], c:1, why:"Bahasa yang menghormati sensitiviti membantu memelihara perpaduan masyarakat majmuk."},
+      {q:"Anda tidak bersetuju dengan keputusan ketua kelas. Apakah cara terbaik menyuarakan bantahan?", a:["Mengugut ketua kelas","Menyebarkan khabar angin","Berikan alasan yang munasabah melalui saluran yang sesuai","Memalukan ketua kelas dalam talian"], c:2, why:"Bantahan yang berasas dan disampaikan melalui saluran sesuai lebih membina dan bertanggungjawab."},
+      {q:"Apakah perbezaan utama antara fakta dengan fitnah?", a:["Fakta berasaskan bukti yang boleh disemak; fitnah ialah tuduhan palsu atau tidak berasas","Fakta sentiasa popular; fitnah sentiasa lucu","Fakta hanya boleh disampaikan oleh orang dewasa","Fitnah boleh diterima jika ramai orang berkongsi"], c:0, why:"Fakta boleh disokong dengan bukti, manakala fitnah menjejaskan orang melalui dakwaan palsu atau tidak berasas."},
+      {q:"Apakah tindakan yang wajar jika seseorang menghina anda dalam talian?", a:["Balas dengan penghinaan yang lebih kasar","Sebarkan maklumat peribadinya","Ajak rakan menyerangnya","Bertenang, simpan bukti dan laporkan melalui saluran yang sesuai"], c:3, why:"Tindakan tenang dan saluran pelaporan mengurangkan konflik serta membantu menangani gangguan."},
+      {q:"Bagaimanakah kebebasan bersuara dapat menyumbang kepada kemakmuran negara?", a:["Membolehkan fitnah tersebar tanpa kawalan","Membantu masyarakat berkongsi idea, menegur secara membina dan mencari penyelesaian","Menghapuskan keperluan mendengar pandangan lain","Menggalakkan pertelingkahan antara komuniti"], c:1, why:"Pandangan yang disampaikan secara bertanggungjawab boleh memperbaiki keputusan dan menyelesaikan masalah bersama."},
+      {q:"Semasa perbincangan kelas, apakah amalan yang paling menunjukkan kematangan moral?", a:["Mencelah supaya pandangan sendiri didengar","Menolak semua kritikan","Mendengar, menyokong hujah dengan alasan dan menerima teguran secara terbuka","Mengikut pendapat majoriti walaupun tahu maklumat itu salah"], c:2, why:"Mendengar secara aktif, berhujah dengan alasan dan menerima teguran menunjukkan sikap matang dan bertanggungjawab."}
+    ];
+    const heroes = {
+      captain:{name:"Kapten Adil",label:"KAPTEN ADIL",model:"#astronautModel",scale:"0.42 0.42 0.42"},
+      robot:{name:"Robot Fakta",label:"ROBOT FAKTA",model:"#robotModel",scale:"0.62 0.62 0.62"},
+      harmony:{name:"Penjaga Harmoni",label:"PENJAGA HARMONI",model:"#astronautModel",scale:"0.42 0.42 0.42"},
+      commander:{name:"Komander Bertanggungjawab",label:"KOMANDER BERTANGGUNGJAWAB",model:"#astronautModel",scale:"0.42 0.42 0.42"}
+    };
+    let selectedHero = "captain", player = "Penjelajah", index = 0, score = 0, gold = 0, answered = false, hintUsed = false, soundOn = false, audioCtx = null;
+    const $ = id => document.getElementById(id);
+    const startScreen = $("startScreen"), arView = $("arView"), quizModal = $("quizModal");
+    const heroModel = $("heroModel"), hiroMarker = $("hiroMarker");
+    document.querySelectorAll(".hero").forEach(btn => btn.addEventListener("click", () => {
+      selectedHero = btn.dataset.hero;
+      document.querySelectorAll(".hero").forEach(b => { const active=b===btn; b.classList.toggle("selected",active); b.setAttribute("aria-pressed",String(active)); });
+    }));
+    $("soundButton").addEventListener("click", () => {
+      soundOn = !soundOn; $("soundButton").textContent = soundOn ? "♫ Bunyi: Hidup" : "♫ Bunyi: Mati"; $("soundButton").setAttribute("aria-pressed",String(soundOn));
+      if(soundOn) playTone(660,0.08);
+    });
+    function playTone(freq=660, duration=.12) {
+      if(!soundOn) return;
+      try { audioCtx ||= new (window.AudioContext || window.webkitAudioContext)(); const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.frequency.value=freq; o.connect(g); g.connect(audioCtx.destination); g.gain.setValueAtTime(.045,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration); o.start(); o.stop(audioCtx.currentTime+duration); } catch(e) {}
+    }
+    $("startButton").addEventListener("click", () => {
+      player = $("playerName").value.trim() || "Penjelajah";
+      index=0; score=0; gold=0; answered=false; hintUsed=false;
+      $("hudPlayer").textContent = player + " · " + heroes[selectedHero].name;
+      configureHero();
+      startScreen.classList.add("hidden"); arView.classList.remove("hidden");
+      $("scanHint").classList.remove("hidden"); quizModal.classList.add("hidden");
+      $("hudProgress").textContent = "Cabaran 0/10 · Skor 0";
+      // AR.js will request camera permission automatically. Use HTTPS or localhost on most devices.
+    });
+    function configureHero() {
+      const h=heroes[selectedHero];
+      heroModel.setAttribute("gltf-model",h.model);
+      heroModel.setAttribute("scale",h.scale);
+      $("modelLabel").setAttribute("value",h.label);
+    }
+    $("exitButton").addEventListener("click", () => {
+      arView.classList.add("hidden"); startScreen.classList.remove("hidden");
+      // Stop AR camera stream when leaving.
+      document.querySelectorAll("video").forEach(v => { try { const s=v.srcObject; if(s) s.getTracks().forEach(t=>t.stop()); } catch(e){} });
+    });
+    hiroMarker.addEventListener("markerFound", () => { $("scanHint").innerHTML = "✨ Hero ditemui! <b>Ketik model 3D</b> untuk membuka soalan."; $("scanHint").classList.remove("hidden"); });
+    hiroMarker.addEventListener("markerLost", () => { if(quizModal.classList.contains("hidden")) $("scanHint").innerHTML = "🎯 Halakan kamera ke <b>marker Hiro</b> yang dicetak. <br/>Apabila hero muncul, <b>ketik model 3D</b> untuk menjawab."; });
+    heroModel.addEventListener("click", openQuestion);
+    heroModel.addEventListener("touchstart", () => {}, {passive:true});
+    // Fallback for touch devices: tapping anywhere on the marker model triggers via A-Frame cursor/raycaster.
+    function openQuestion() {
+      if(arView.classList.contains("hidden")) return;
+      if(index >= questions.length) { showResults(); return; }
+      $("scanHint").classList.add("hidden");
+      quizModal.classList.remove("hidden");
+      renderQuestion();
+    }
+    function renderQuestion() {
+      const item=questions[index]; answered=false;
+      $("quizKicker").textContent = "Cabaran " + (index+1) + " daripada " + questions.length;
+      $("scorePill").textContent = "Skor " + score + " · Emas " + gold;
+      $("questionText").textContent = item.q;
+      $("feedbackText").classList.add("hidden"); $("feedbackText").textContent="";
+      $("nextButton").classList.add("hidden");
+      $("answerList").innerHTML="";
+      item.a.forEach((answer,i) => {
+        const b=document.createElement("button"); b.type="button"; b.className="answer";
+        b.textContent=String.fromCharCode(65+i)+". "+answer;
+        b.addEventListener("click",()=>chooseAnswer(i,b)); $("answerList").appendChild(b);
+      });
+    }
+    function chooseAnswer(choice, button) {
+      if(answered) return; answered=true;
+      const item=questions[index], buttons=[...$("answerList").querySelectorAll("button")], correct=choice===item.c;
+      buttons.forEach((b,i)=>{b.disabled=true;if(i===item.c)b.classList.add("correct");});
+      if(correct) { score+=10; if(selectedHero==="harmony") gold+=5; playTone(880,.16); }
+      else { button.classList.add("wrong"); playTone(190,.2); }
+      $("hudProgress").textContent="Cabaran "+(index+1)+"/"+questions.length+" · Skor "+score;
+      $("scorePill").textContent="Skor "+score+" · Emas "+gold;
+      $("feedbackText").textContent=(correct?"🌟 Hebat! ":"💫 Cuba lagi pada cabaran seterusnya. ")+item.why;
+      $("feedbackText").classList.remove("hidden");
+      $("nextButton").textContent=index===questions.length-1?"Lihat keputusan ✨":"Cabaran seterusnya →";
+      $("nextButton").classList.remove("hidden");
+    }
+    $("nextButton").addEventListener("click",()=>{
+      index++;
+      if(index>=questions.length) showResults(); else renderQuestion();
+    });
+    $("closeQuizButton").addEventListener("click",()=>{quizModal.classList.add("hidden");if(index<questions.length)$("scanHint").classList.remove("hidden");});
+    function showResults() {
+      quizModal.classList.remove("hidden"); $("scanHint").classList.add("hidden");
+      $("quizKicker").textContent="Misi selesai";
+      $("scorePill").textContent="Penjelajah: "+player;
+      $("questionText").innerHTML="";
+      $("answerList").innerHTML='<div class="end-card"><div class="big-score">'+score+'/100</div><p>Emas terkumpul: <strong>'+gold+'</strong></p><p>'+ (score>=80?"Cemerlang! Anda menggunakan kebebasan bersuara secara bertanggungjawab.":score>=50?"Bagus! Terus berlatih menyampaikan pandangan dengan berhemah.":"Teruskan latihan — semak fakta, hormati orang lain dan fikir sebelum bersuara.")+'</p></div>';
+      $("feedbackText").classList.add("hidden"); $("nextButton").classList.add("hidden");
+      $("closeQuizButton").textContent="Kembali ke kamera";
+      $("hudProgress").textContent="Misi selesai · Skor "+score;
+      playTone(740,.2);
+    }
+    function showToast(message) {
+      const t=$("toast"); t.textContent=message; t.classList.remove("hidden"); setTimeout(()=>t.classList.add("hidden"),4500);
+    }
+    // Some mobile browsers dispatch click reliably through the cursor; this component improves tapping.
+    AFRAME.registerComponent("cursor-listener", {init:function(){this.el.addEventListener("click",()=>{if(index<questions.length)openQuestion();});}});
+    // Optional glTF animation support for the robot model.
+    if(!AFRAME.components["animation-mixer"]) {
+      const s=document.createElement("script"); s.src="https://cdn.jsdelivr.net/gh/n5ro/aframe-extras@7.5.4/dist/aframe-extras.min.js"; document.head.appendChild(s);
+    }
+  </script>
+</body>
+</html>
